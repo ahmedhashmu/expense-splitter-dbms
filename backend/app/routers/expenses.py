@@ -1,8 +1,13 @@
 from decimal import Decimal
 
-import psycopg
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.access import (
+    get_expense_for_member,
+    require_can_edit_expense,
+    require_member,
+)
+from app.auth import CurrentUser, get_current_user
 from app.db import Conn, get_conn
 from app.schemas import ExpenseCreate, ExpenseUpdate, SettlementCreate
 from app.splits import SplitError, equal_split, exact_split, percentage_split
@@ -32,10 +37,14 @@ def _group_member_ids(conn: Conn, group_id: int) -> set[int]:
 
 
 @router.post("/groups/{group_id}/expenses", status_code=201)
-def create_expense(group_id: int, body: ExpenseCreate, conn: Conn = Depends(get_conn)):
+def create_expense(
+    group_id: int,
+    body: ExpenseCreate,
+    user: CurrentUser = Depends(get_current_user),
+    conn: Conn = Depends(get_conn),
+):
+    require_member(conn, group_id, user["id"])
     members = _group_member_ids(conn, group_id)
-    if not members:
-        raise HTTPException(404, "Group not found")
     involved = {body.paid_by, *(p.user_id for p in body.participants)}
     if not involved <= members:
         raise HTTPException(400, "Payer and participants must all be group members")
@@ -61,7 +70,10 @@ def create_expense(group_id: int, body: ExpenseCreate, conn: Conn = Depends(get_
 
 
 @router.get("/groups/{group_id}/expenses")
-def list_expenses(group_id: int, conn: Conn = Depends(get_conn)):
+def list_expenses(
+    group_id: int, user: CurrentUser = Depends(get_current_user), conn: Conn = Depends(get_conn)
+):
+    require_member(conn, group_id, user["id"])
     return conn.execute(
         "SELECT e.id, e.paid_by, u.name AS paid_by_name, e.amount, e.description, "
         "e.split_type, e.expense_date FROM expenses e JOIN users u ON u.id = e.paid_by "
@@ -71,10 +83,10 @@ def list_expenses(group_id: int, conn: Conn = Depends(get_conn)):
 
 
 @router.get("/expenses/{expense_id}")
-def get_expense(expense_id: int, conn: Conn = Depends(get_conn)):
-    expense = conn.execute("SELECT * FROM expenses WHERE id = %s", (expense_id,)).fetchone()
-    if not expense:
-        raise HTTPException(404, "Expense not found")
+def get_expense(
+    expense_id: int, user: CurrentUser = Depends(get_current_user), conn: Conn = Depends(get_conn)
+):
+    expense = get_expense_for_member(conn, expense_id, user["id"])
     splits = conn.execute(
         "SELECT user_id, share_amount FROM expense_splits WHERE expense_id = %s", (expense_id,)
     ).fetchall()
@@ -82,8 +94,14 @@ def get_expense(expense_id: int, conn: Conn = Depends(get_conn)):
 
 
 @router.patch("/expenses/{expense_id}")
-def update_expense(expense_id: int, body: ExpenseUpdate, conn: Conn = Depends(get_conn)):
+def update_expense(
+    expense_id: int,
+    body: ExpenseUpdate,
+    user: CurrentUser = Depends(get_current_user),
+    conn: Conn = Depends(get_conn),
+):
     """Only description/date can change; amount changes would need splits recomputed."""
+    require_can_edit_expense(get_expense_for_member(conn, expense_id, user["id"]), user["id"])
     row = conn.execute(
         "UPDATE expenses SET description = COALESCE(%s, description), "
         "expense_date = COALESCE(%s, expense_date) WHERE id = %s "
@@ -96,22 +114,29 @@ def update_expense(expense_id: int, body: ExpenseUpdate, conn: Conn = Depends(ge
 
 
 @router.delete("/expenses/{expense_id}", status_code=204)
-def delete_expense(expense_id: int, conn: Conn = Depends(get_conn)):
+def delete_expense(
+    expense_id: int, user: CurrentUser = Depends(get_current_user), conn: Conn = Depends(get_conn)
+):
+    require_can_edit_expense(get_expense_for_member(conn, expense_id, user["id"]), user["id"])
     # expense_splits rows go too (ON DELETE CASCADE)
-    cur = conn.execute("DELETE FROM expenses WHERE id = %s", (expense_id,))
-    if cur.rowcount == 0:
-        raise HTTPException(404, "Expense not found")
+    conn.execute("DELETE FROM expenses WHERE id = %s", (expense_id,))
 
 
 @router.post("/groups/{group_id}/settlements", status_code=201)
-def create_settlement(group_id: int, body: SettlementCreate, conn: Conn = Depends(get_conn)):
-    members = _group_member_ids(conn, group_id)
-    if body.from_user not in members or body.to_user not in members:
-        raise HTTPException(400, "Both users must be group members")
-    if body.from_user == body.to_user:
+def create_settlement(
+    group_id: int,
+    body: SettlementCreate,
+    user: CurrentUser = Depends(get_current_user),
+    conn: Conn = Depends(get_conn),
+):
+    """The logged-in user records a payment they made to another member."""
+    require_member(conn, group_id, user["id"])
+    if body.to_user not in _group_member_ids(conn, group_id):
+        raise HTTPException(400, "The receiver must be a group member")
+    if body.to_user == user["id"]:
         raise HTTPException(400, "Cannot settle with yourself")
     return conn.execute(
         "INSERT INTO settlements (group_id, from_user, to_user, amount) VALUES (%s, %s, %s, %s) "
         "RETURNING id, group_id, from_user, to_user, amount, settled_at",
-        (group_id, body.from_user, body.to_user, body.amount),
+        (group_id, user["id"], body.to_user, body.amount),
     ).fetchone()

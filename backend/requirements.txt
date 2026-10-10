@@ -3,4 +3,7 @@ uvicorn[standard]
 psycopg[binary]
 pydantic[email]
 python-dotenv
+bcrypt
+PyJWT
+python-multipart
 mypy

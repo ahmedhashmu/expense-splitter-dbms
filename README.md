@@ -40,13 +40,14 @@ docs/       SRS, SDS, DFD (not started)
 Positive means others owe that user, negative means the user owes.
 
 ## Getting started
-1. Create a Supabase project, open the SQL editor, run `db/schema.sql` (and optionally `db/seed.sql`).
+1. Create a Supabase project, open the SQL editor, run `db/schema.sql` (and optionally `db/seed.sql`; demo users log in with password `demo1234`).
+   If you ran an older schema, run `db/migrations/001_add_password_hash.sql` instead.
 2. Set up the backend:
    ```bash
    cd backend
    python -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt -r requirements-dev.txt
-   cp .env.example .env      # put your Supabase connection string in DATABASE_URL
+   cp .env.example .env      # fill in DATABASE_URL and JWT_SECRET
    uvicorn app.main:app --reload
    ```
 3. Open http://localhost:8000/docs for the interactive API docs.
@@ -59,16 +60,22 @@ mypy app
 ```
 
 ## API overview
+Everything except `/auth/*` and `/health` needs a login token
+(`Authorization: Bearer <token>`). In `/docs`, click **Authorize** and log in with email + password.
+Users only ever see groups they belong to.
+
 | Method | Path | What it does |
 |---|---|---|
-| POST/GET | `/users` | create / list users |
-| GET/PUT/DELETE | `/users/{id}` | read / update / delete a user |
-| POST/GET | `/groups` | create / list groups |
-| POST/GET | `/groups/{id}/members` | add / list members |
-| DELETE | `/groups/{id}/members/{user_id}` | remove a member |
+| POST | `/auth/register` | create an account |
+| POST | `/auth/login` | email + password -> token |
+| GET/PUT/DELETE | `/users/me` | my profile |
+| POST/GET | `/groups` | create a group / list my groups |
+| PUT/DELETE | `/groups/{id}` | rename / delete (creator only) |
+| POST/GET | `/groups/{id}/members` | add by email / list members |
+| DELETE | `/groups/{id}/members/{user_id}` | leave, or creator removes someone |
 | POST/GET | `/groups/{id}/expenses` | add / list expenses |
-| GET/PATCH/DELETE | `/expenses/{id}` | read / edit / delete an expense |
-| POST | `/groups/{id}/settlements` | record a repayment |
+| GET/PATCH/DELETE | `/expenses/{id}` | read / edit / delete (payer or group creator) |
+| POST | `/groups/{id}/settlements` | record a payment I made to a member |
 | GET | `/groups/{id}/balances` | who owes whom |
 
 Example expense (equal split between three people):

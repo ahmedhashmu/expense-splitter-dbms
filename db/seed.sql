@@ -1,8 +1,9 @@
 -- Sample data for demos. Run after schema.sql.
-INSERT INTO users (name, email) VALUES
-  ('Ali',  'ali@example.com'),
-  ('Sara', 'sara@example.com'),
-  ('Bilal','bilal@example.com');
+-- All three demo users log in with the password: demo1234
+INSERT INTO users (name, email, password_hash) VALUES
+  ('Ali',  'ali@example.com',  '{h}'),
+  ('Sara', 'sara@example.com', '{h}'),
+  ('Bilal','bilal@example.com','{h}');
 
 INSERT INTO groups (name, created_by) VALUES ('Flat 4B', 1);
 INSERT INTO group_members (group_id, user_id) VALUES (1,1),(1,2),(1,3);

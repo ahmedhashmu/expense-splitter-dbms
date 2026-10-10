@@ -4,6 +4,7 @@ CREATE TABLE users (
     id          SERIAL PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
     email       VARCHAR(255) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
     phone       VARCHAR(20),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -54,7 +55,7 @@ CREATE TABLE settlements (
 
 -- Net balance per user per group:
 -- paid - own share + received settlements - sent settlements
-CREATE VIEW user_balances AS
+CREATE VIEW user_balances WITH (security_invoker = true) AS
 SELECT
     gm.group_id,
     gm.user_id,
@@ -69,3 +70,13 @@ SELECT
               WHERE st.group_id = gm.group_id AND st.to_user = gm.user_id), 0)
     AS balance
 FROM group_members gm;
+
+-- Supabase exposes tables through its public REST API by default.
+-- Our backend connects directly as the postgres role (bypasses RLS),
+-- so turning RLS on with no policies blocks that public API completely.
+ALTER TABLE users          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE groups         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_members  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expense_splits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settlements    ENABLE ROW LEVEL SECURITY;
