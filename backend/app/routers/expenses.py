@@ -140,3 +140,18 @@ def create_settlement(
         "RETURNING id, group_id, from_user, to_user, amount, settled_at",
         (group_id, user["id"], body.to_user, body.amount),
     ).fetchone()
+
+
+@router.get("/groups/{group_id}/settlements")
+def list_settlements(
+    group_id: int, user: CurrentUser = Depends(get_current_user), conn: Conn = Depends(get_conn)
+):
+    """Payment history of the group, newest first."""
+    require_member(conn, group_id, user["id"])
+    return conn.execute(
+        "SELECT st.id, st.from_user, f.name AS from_name, st.to_user, t.name AS to_name, "
+        "st.amount, st.settled_at FROM settlements st "
+        "JOIN users f ON f.id = st.from_user JOIN users t ON t.id = st.to_user "
+        "WHERE st.group_id = %s ORDER BY st.settled_at DESC, st.id DESC",
+        (group_id,),
+    ).fetchall()
