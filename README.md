@@ -22,8 +22,8 @@ backend/    FastAPI app
   app/splits.py       split math (equal / exact / percentage), no DB code
   app/routers/        users, groups, expenses + settlements
   tests/              unit tests for the split logic
-frontend/   web UI (not started)
-docs/       SRS, SDS, DFD (not started)
+frontend/   Next.js website (talks to the API through its /api proxy)
+start.sh    runs the API and the website together for a local demo
 ```
 
 ## Database
@@ -38,6 +38,13 @@ docs/       SRS, SDS, DFD (not started)
 
 `user_balances` is a view: paid - own share + settlements sent - settlements received.
 Positive means others owe that user, negative means the user owes.
+
+## Quick start (demo on this laptop)
+```bash
+./start.sh
+```
+Opens http://localhost:3000. Log in with the demo account `ali@example.com` / `demo1234`.
+The first run installs the Python and Node packages; `backend/.env` must exist (see below).
 
 ## Getting started
 1. Create a Supabase project, open the SQL editor, run `db/schema.sql` (and optionally `db/seed.sql`; demo users log in with password `demo1234`).
@@ -76,6 +83,7 @@ Users only ever see groups they belong to.
 | POST/GET | `/groups/{id}/expenses` | add / list expenses |
 | GET/PATCH/DELETE | `/expenses/{id}` | read / edit / delete (payer or group creator) |
 | POST | `/groups/{id}/settlements` | record a payment I made to a member |
+| GET | `/groups/{id}/settlements` | payment history |
 | GET | `/groups/{id}/balances` | who owes whom |
 
 Example expense (equal split between three people):
@@ -92,4 +100,5 @@ For `exact` give `value` as the amount each person owes; for `percentage`, as th
 
 ## Deployment notes
 - Keep `DATABASE_URL` only in Railway's environment variables, never in the frontend.
-- The backend start command on Railway: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+- The backend start command on Railway: `uvicorn app.main:app --host 0.0.0.0 --port $PORT` (root directory `backend`).
+- Vercel: root directory `frontend`, set `BACKEND_URL` to the Railway URL. The website forwards `/api/*` to it, so the API needs no CORS setup.
