@@ -100,7 +100,7 @@ export default function ReportsPage({ params }: { params: Promise<{ id: string }
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-head"><h2>Ask your data</h2><span className="hint">Gemini writes the SQL · runs read-only</span></div>
+        <div className="card-head"><h2>Ask your data</h2><span className="hint">powered by Gemini</span></div>
         <form className="ask-box" onSubmit={(e) => { e.preventDefault(); ask(question); }}>
           <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="e.g. How much did we spend on travel?" />
           <button disabled={asking}>{asking ? "Thinking…" : "Ask"}</button>
@@ -113,18 +113,7 @@ export default function ReportsPage({ params }: { params: Promise<{ id: string }
         {answer && (
           <div>
             <p className="answer">{answer.answer}</p>
-            {answer.sql ? (
-              <>
-                <div className="muted" style={{ fontSize: 13 }}>{answer.note}</div>
-                <pre className="sql">{answer.sql}</pre>
-                {answer.rows.length > 1 && <div style={{ marginTop: 10 }}><Table rows={answer.rows} /></div>}
-                <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                  Ran as the database role <code>fairshare_ai</code>: read-only, 3-second limit, and it can only see this group.
-                </p>
-              </>
-            ) : (
-              <p className="muted" style={{ fontSize: 13 }}>No query was run.</p>
-            )}
+            {answer.rows.length > 1 && <div style={{ marginTop: 10 }}><Table rows={answer.rows} /></div>}
           </div>
         )}
       </div>
