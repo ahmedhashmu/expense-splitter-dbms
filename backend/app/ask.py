@@ -61,10 +61,12 @@ FORBIDDEN = re.compile(
 
 
 def _client() -> OpenAI:
-    key = os.environ.get("GEMINI_API_KEY", "")
+    # strip stray spaces, newlines or quotes picked up when pasting the key into a dashboard
+    key = os.environ.get("GEMINI_API_KEY", "").strip().strip('"').strip("'").strip()
     if not key:
         raise HTTPException(503, "GEMINI_API_KEY is not set, so questions can't be answered.")
-    return OpenAI(api_key=key, base_url=GEMINI_BASE_URL)
+    # the Gemini endpoint drops a connection now and then, so retry a few times
+    return OpenAI(api_key=key, base_url=GEMINI_BASE_URL, timeout=30, max_retries=3)
 
 
 def _chat(client: OpenAI, system: str, user: str, json_mode: bool) -> str:
