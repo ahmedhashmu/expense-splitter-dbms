@@ -53,19 +53,32 @@ def create_expense(
     except SplitError as e:
         raise HTTPException(400, str(e))
 
-    # both inserts run in one transaction (committed when the request ends)
+    # the expense and all its shares are one transaction (committed when the request ends)
     expense = conn.execute(
-        "INSERT INTO expenses (group_id, paid_by, amount, description, split_type, expense_date) "
-        "VALUES (%s, %s, %s, %s, %s, COALESCE(%s, CURRENT_DATE)) "
-        "RETURNING id, group_id, paid_by, amount, description, split_type, expense_date",
-        (group_id, body.paid_by, body.amount, body.description, body.split_type, body.expense_date),
+        "INSERT INTO expenses (group_id, paid_by, amount, description, split_type, category, expense_date) "
+        "VALUES (%s, %s, %s, %s, %s, %s, COALESCE(%s, CURRENT_DATE)) "
+        "RETURNING id, group_id, paid_by, amount, description, split_type, category, expense_date",
+        (group_id, body.paid_by, body.amount, body.description, body.split_type,
+         body.category, body.expense_date),
     ).fetchone()
     assert expense is not None  # INSERT ... RETURNING always yields a row
-    for user_id, share in shares.items():
+    for written, (user_id, share) in enumerate(shares.items(), start=1):
         conn.execute(
             "INSERT INTO expense_splits (expense_id, user_id, share_amount) VALUES (%s, %s, %s)",
             (expense["id"], user_id, share),
         )
+        if body.simulate_failure and written == 1:
+            # Demo: crash after the expense and its first share are already written.
+            conn.rollback()
+            left = conn.execute(
+                "SELECT count(*) AS n FROM expenses WHERE id = %s", (expense["id"],)
+            ).fetchone()
+            raise HTTPException(
+                409,
+                f"Simulated failure after writing expense #{expense['id']} and 1 of "
+                f"{len(shares)} shares. The transaction was rolled back: "
+                f"{left['n'] if left else 0} rows of it are left in the database.",
+            )
     return {**expense, "splits": [{"user_id": u, "share_amount": s} for u, s in shares.items()]}
 
 
@@ -76,7 +89,7 @@ def list_expenses(
     require_member(conn, group_id, user["id"])
     return conn.execute(
         "SELECT e.id, e.paid_by, u.name AS paid_by_name, e.amount, e.description, "
-        "e.split_type, e.expense_date FROM expenses e JOIN users u ON u.id = e.paid_by "
+        "e.split_type, e.category, e.expense_date FROM expenses e JOIN users u ON u.id = e.paid_by "
         "WHERE e.group_id = %s ORDER BY e.expense_date DESC, e.id DESC",
         (group_id,),
     ).fetchall()

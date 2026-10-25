@@ -165,3 +165,26 @@ a.item:hover { background: #fbf8f2; text-decoration: none; }
   .receipt, .auth-art .foot { display: none; }
 }
 @media (max-width: 600px) { .who .email { display: none; } h1 { font-size: 26px; } }
+
+/* ---------- DBMS demo bits ---------- */
+.demo-toggle { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 0; padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: 8px; font-weight: 400; color: var(--ink); cursor: pointer; }
+.demo-toggle input { width: 16px; height: 16px; margin-top: 3px; accent-color: var(--minus); flex: none; }
+.rollback { margin-top: 12px; padding: 12px 14px; border-radius: 8px; background: var(--minus-soft); color: var(--minus); font-size: 14px; }
+.rollback div { color: var(--ink-soft); }
+.sql { margin: 10px 0 0; padding: 10px 12px; background: #23211d; color: #efe9de; border-radius: 8px; font: 12.5px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-x: auto; }
+details > summary { cursor: pointer; color: var(--ink-soft); font-size: 13px; margin-top: 10px; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { text-align: left; font-weight: 600; color: var(--ink-soft); font-size: 12.5px; padding: 6px 8px; border-bottom: 1px solid var(--line-strong); }
+.table td { padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bar { height: 8px; border-radius: 4px; background: var(--accent); }
+.ask-box { display: flex; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips button { background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line-strong); font-weight: 500; padding: 5px 10px; font-size: 13px; }
+.answer { font-family: var(--serif); font-size: 19px; margin: 14px 0 4px; }
+.change { padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; display: flex; gap: 12px; align-items: baseline; }
+.change:first-of-type { border-top: 0; }
+.act { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 4px; flex: none; }
+.act.INSERT { background: var(--plus-soft); color: var(--plus); }
+.act.UPDATE { background: var(--accent-soft); color: var(--accent); }
+.act.DELETE { background: var(--minus-soft); color: var(--minus); }
