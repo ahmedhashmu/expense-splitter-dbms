@@ -56,4 +56,7 @@ def get_current_user(
     ).fetchone()
     if not user:
         raise HTTPException(401, "User no longer exists")
+    # the audit trigger reads this to record who made each change
+    # (true = only for this transaction, so pooled connections don't leak it)
+    conn.execute("SELECT set_config('app.user_id', %s, true)", (str(user["id"]),))
     return user

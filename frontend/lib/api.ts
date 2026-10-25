@@ -73,6 +73,8 @@ export type User = { id: number; name: string; email: string; phone: string | nu
 export type Group = { id: number; name: string; created_by: number };
 export type Balance = { user_id: number; name: string; balance: string };
 export type SplitType = "equal" | "exact" | "percentage";
+export const CATEGORIES = ["food", "rent", "utilities", "travel", "shopping", "entertainment", "other"] as const;
+export type Category = (typeof CATEGORIES)[number];
 export type Expense = {
   id: number;
   paid_by: number;
@@ -80,6 +82,7 @@ export type Expense = {
   amount: string;
   description: string;
   split_type: SplitType;
+  category: Category;
   expense_date: string;
 };
 export type ExpenseDetail = Expense & { splits: { user_id: number; share_amount: string }[] };
@@ -92,3 +95,6 @@ export type Settlement = {
   amount: string;
   settled_at: string;
 };
+
+/** One payment from the settle_up() SQL function. */
+export type Transfer = { from_user: number; from_name: string; to_user: number; to_name: string; amount: number };

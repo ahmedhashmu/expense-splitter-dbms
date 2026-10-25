@@ -49,13 +49,19 @@ class Participant(BaseModel):
     value: Decimal | None = None
 
 
+Category = Literal["food", "rent", "utilities", "travel", "shopping", "entertainment", "other"]
+
+
 class ExpenseCreate(BaseModel):
     paid_by: int
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     description: str = Field(min_length=1, max_length=255)
     split_type: Literal["equal", "exact", "percentage"] = "equal"
+    category: Category = "other"
     expense_date: date | None = None
     participants: list[Participant] = Field(min_length=1)
+    # classroom demo: fail half way through to show the transaction rolling back
+    simulate_failure: bool = False
 
 
 class ExpenseUpdate(BaseModel):
@@ -73,3 +79,7 @@ class Balance(BaseModel):
     user_id: int
     name: str
     balance: Decimal
+
+
+class AskBody(BaseModel):
+    question: str = Field(min_length=3, max_length=300)

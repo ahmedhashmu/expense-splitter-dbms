@@ -9,10 +9,13 @@ import {
   type Group,
   type Settlement,
   type SplitType,
+  type Category,
+  type Transfer,
+  CATEGORIES,
   type User,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { niceDate, rupees, settleUp } from "@/lib/money";
+import { niceDate, rupees } from "@/lib/money";
 import { initials } from "../../Shell";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -68,7 +71,11 @@ export default function GroupPage({ params }: { params: Promise<{ id: string }> 
           <h1>{group.name}</h1>
           <p>{members.length} {members.length === 1 ? "member" : "members"} · {expenses.length} {expenses.length === 1 ? "expense" : "expenses"} · {rupees(total)} spent so far</p>
         </div>
-        {isCreator && <GroupMenu group={group} onChanged={load} />}
+        <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
+          <a href={`/groups/${groupId}/reports`}>Reports &amp; Ask AI →</a>
+          <a href={`/groups/${groupId}/history`}>History</a>
+          {isCreator && <GroupMenu group={group} onChanged={load} />}
+        </div>
       </div>
 
       {error && <p className="err" style={{ marginBottom: 16 }}>{error}</p>}
@@ -155,6 +162,9 @@ function AddExpense({ groupId, members, me, onAdded }: { groupId: number; member
   const [paidBy, setPaidBy] = useState(me);
   const [date, setDate] = useState(today());
   const [type, setType] = useState<SplitType>("equal");
+  const [category, setCategory] = useState<Category>("food");
+  const [simulate, setSimulate] = useState(false);
+  const [rolledBack, setRolledBack] = useState("");
   const [included, setIncluded] = useState<Record<number, boolean>>({});
   const [values, setValues] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false);
@@ -176,6 +186,8 @@ function AddExpense({ groupId, members, me, onAdded }: { groupId: number; member
     setPaidBy(me);
     setDate(today());
     setType("equal");
+    setCategory("food");
+    setSimulate(false);
     setValues({});
     setIncluded(Object.fromEntries(members.map((m) => [m.id, true])));
   }
@@ -183,6 +195,7 @@ function AddExpense({ groupId, members, me, onAdded }: { groupId: number; member
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setRolledBack("");
     if (chosen.length === 0) return setError("Pick at least one person to split with.");
     if (!balanced) {
       return setError(type === "percentage" ? "Percentages must add up to 100." : "The amounts must add up to the total.");
@@ -197,6 +210,8 @@ function AddExpense({ groupId, members, me, onAdded }: { groupId: number; member
           paid_by: paidBy,
           expense_date: date,
           split_type: type,
+          category,
+          simulate_failure: simulate,
           participants: chosen.map((m) => (type === "equal" ? { user_id: m.id } : { user_id: m.id, value: values[m.id] || "0" })),
         }),
       });
@@ -204,7 +219,13 @@ function AddExpense({ groupId, members, me, onAdded }: { groupId: number; member
       setOpen(false);
       onAdded();
     } catch (err) {
-      setError((err as Error).message);
+      const e = err as Error & { status?: number };
+      if (simulate && e.status === 409) {
+        setRolledBack(e.message);
+        onAdded(); // reload: the list must look exactly the same as before
+      } else {
+        setError(e.message);
+      }
     }
     setBusy(false);
   }
@@ -243,6 +264,11 @@ function AddExpense({ groupId, members, me, onAdded }: { groupId: number; member
         </div>
       </div>
 
+      <label htmlFor="cat">Category</label>
+      <select id="cat" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
+        {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+      </select>
+
       <label>Split</label>
       <div className="seg">
         {(["equal", "exact", "percentage"] as SplitType[]).map((t) => (
@@ -278,11 +304,28 @@ function AddExpense({ groupId, members, me, onAdded }: { groupId: number; member
         </div>
       )}
 
+      <label className="demo-toggle">
+        <input type="checkbox" checked={simulate} onChange={(e) => setSimulate(e.target.checked)} />
+        <span>
+          <b>Transaction demo:</b> crash half way through saving
+          <span className="muted" style={{ display: "block", fontSize: 12 }}>
+            The expense and one share get written, then the server fails. The whole transaction rolls back.
+          </span>
+        </span>
+      </label>
+
       <div className="actions">
-        <button disabled={busy}>{busy ? "Saving…" : "Save expense"}</button>
+        <button disabled={busy}>{busy ? "Saving…" : simulate ? "Save (and crash)" : "Save expense"}</button>
         <button type="button" className="plain" onClick={() => { reset(); setOpen(false); setError(""); }}>Cancel</button>
       </div>
       {error && <p className="err">{error}</p>}
+      {rolledBack && (
+        <div className="rollback">
+          <b>Rolled back — nothing was saved.</b>
+          <div>{rolledBack}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Check the expense list and History: no trace of it.</div>
+        </div>
+      )}
     </form>
   );
 }
@@ -333,7 +376,7 @@ function ExpenseList({ expenses, members, me, isCreator, onChanged }: {
                 <div>
                   <div className="title">{e.description}</div>
                   <div className="sub">
-                    {e.paid_by === me ? "You" : e.paid_by_name} paid · {niceDate(e.expense_date)} · <span className="pill">{e.split_type === "equal" ? "equal" : e.split_type === "exact" ? "by amount" : "by %"}</span>
+                    {e.paid_by === me ? "You" : e.paid_by_name} paid · {niceDate(e.expense_date)} · <span className="pill">{e.category}</span> <span className="pill">{e.split_type === "equal" ? "equal" : e.split_type === "exact" ? "by amount" : "by %"}</span>
                   </div>
                 </div>
               </div>
@@ -365,7 +408,11 @@ function ExpenseList({ expenses, members, me, isCreator, onChanged }: {
 function Balances({ balances, me, groupId, members, onPaid }: {
   balances: Balance[]; me: number; groupId: number; members: User[]; onPaid: () => void;
 }) {
-  const transfers = settleUp(balances);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  useEffect(() => {
+    // "who pays whom" is worked out by the settle_up() function in the database
+    api<Transfer[]>(`/groups/${groupId}/settle-up`).then(setTransfers).catch(() => setTransfers([]));
+  }, [balances, groupId]);
   const [to, setTo] = useState<number | "">("");
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
@@ -417,15 +464,15 @@ function Balances({ balances, me, groupId, members, onPaid }: {
 
       <div className="card-head" style={{ marginTop: 20, marginBottom: 4 }}>
         <h3>Settle up</h3>
-        <span className="hint">{transfers.length === 0 ? "nothing to settle" : `${transfers.length} payment${transfers.length > 1 ? "s" : ""}`}</span>
+        <span className="hint">{transfers.length === 0 ? "nothing to settle" : `${transfers.length} payment${transfers.length > 1 ? "s" : ""} · from settle_up() in SQL`}</span>
       </div>
       {transfers.map((t, i) => (
         <div key={i} className="transfer">
           <span>
-            <b>{t.from === me ? "You" : t.fromName}</b><span className="arrow">→</span><b>{t.to === me ? "you" : t.toName}</b>
+            <b>{t.from_user === me ? "You" : t.from_name}</b><span className="arrow">→</span><b>{t.to_user === me ? "you" : t.to_name}</b>
             <span style={{ marginLeft: 6 }}>{rupees(t.amount)}</span>
           </span>
-          {t.from === me && <button type="button" className="small plain" onClick={() => prefill(t.to, t.amount)}>I paid</button>}
+          {t.from_user === me && <button type="button" className="small plain" onClick={() => prefill(t.to_user, Number(t.amount))}>I paid</button>}
         </div>
       ))}
 
