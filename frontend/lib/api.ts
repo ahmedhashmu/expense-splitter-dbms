@@ -84,6 +84,8 @@ export type Expense = {
   split_type: SplitType;
   category: Category;
   expense_date: string;
+  /** what the logged-in user owes for this expense (0 if not in it) */
+  my_share?: string;
 };
 export type ExpenseDetail = Expense & { splits: { user_id: number; share_amount: string }[] };
 export type Settlement = {

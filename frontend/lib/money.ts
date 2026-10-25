@@ -2,7 +2,14 @@ import type { Balance } from "./api";
 
 export function rupees(value: string | number): string {
   const n = typeof value === "string" ? Number(value) : value;
-  return "Rs " + Math.abs(n).toLocaleString("en-PK", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const abs = Math.abs(n);
+  const paisa = Math.round(abs * 100) % 100 !== 0;
+  return "Rs " + abs.toLocaleString("en-PK", { minimumFractionDigits: paisa ? 2 : 0, maximumFractionDigits: 2 });
+}
+
+export function monthLabel(value: string): string {
+  const [y, m] = value.slice(0, 7).split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 }
 
 export function niceDate(value: string): string {

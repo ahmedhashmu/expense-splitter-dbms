@@ -89,9 +89,12 @@ def list_expenses(
     require_member(conn, group_id, user["id"])
     return conn.execute(
         "SELECT e.id, e.paid_by, u.name AS paid_by_name, e.amount, e.description, "
-        "e.split_type, e.category, e.expense_date FROM expenses e JOIN users u ON u.id = e.paid_by "
+        "e.split_type, e.category, e.expense_date, "
+        "COALESCE(mine.share_amount, 0) AS my_share "  # what the logged-in user owes for it
+        "FROM expenses e JOIN users u ON u.id = e.paid_by "
+        "LEFT JOIN expense_splits mine ON mine.expense_id = e.id AND mine.user_id = %s "
         "WHERE e.group_id = %s ORDER BY e.expense_date DESC, e.id DESC",
-        (group_id,),
+        (user["id"], group_id),
     ).fetchall()
 
 

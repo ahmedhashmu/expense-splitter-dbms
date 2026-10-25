@@ -1,9 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowRight, BarChart3, ShieldCheck, Sparkles } from "lucide-react";
 import { api, login } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { Avatar, CategoryIcon } from "@/lib/ui";
 import { Brand } from "../Shell";
+
+const PREVIEW = [
+  { id: 1, who: "Ali", what: "Groceries", cat: "food" as const, amount: "Rs 900", note: "you owe Rs 300" },
+  { id: 2, who: "Sara", what: "Internet bill", cat: "utilities" as const, amount: "Rs 300", note: "you owe Rs 100" },
+  { id: 4, who: "You", what: "Naran trip — hotel", cat: "travel" as const, amount: "Rs 16,000", note: "you lent Rs 12,000" },
+];
 
 export default function LoginPage() {
   const { refresh } = useAuth();
@@ -30,70 +38,96 @@ export default function LoginPage() {
     setBusy(false);
   }
 
-  function useDemo() {
-    setMode("login");
-    setEmail("ali@example.com");
-    setPassword("demo1234");
+  function switchMode(next: "login" | "register") {
+    setMode(next);
     setError("");
   }
 
   return (
     <div className="auth">
-      <section className="auth-art">
+      <section className="auth-side">
         <div>
           <Brand />
-          <h1>Split the bill. Keep the friends.</h1>
-          <p>Add what you paid, split it equally, by amount or by percentage, and FairShare tells everyone exactly who owes whom.</p>
+          <h1>Shared money, without the awkward conversations.</h1>
+          <p className="lead">
+            Log what everyone paid, split it equally, by amount or by percentage, and FairShare works out
+            the fewest payments to settle up.
+          </p>
 
-          <div className="receipt" aria-hidden>
-            <div className="r-head"><span>Flat 4B · October</span><span>3 people</span></div>
-            <div className="r-line"><span>Groceries (Ali)</span><span>Rs 900</span></div>
-            <div className="r-line"><span>Internet (Sara)</span><span>Rs 300</span></div>
-            <div className="r-line r-total"><span>Bilal pays Ali</span><span>Rs 400</span></div>
-            <div className="r-line"><span>Sara pays Ali</span><span>Rs 100</span></div>
+          <div className="preview" aria-hidden>
+            <div className="preview-head">
+              <span style={{ fontWeight: 600 }}>Flat 4B</span>
+              <span className="badge badge-plus">you're owed Rs 11,600</span>
+            </div>
+            {PREVIEW.map((p) => (
+              <div key={p.what} className="list-row">
+                <CategoryIcon category={p.cat} size={32} />
+                <div className="main">
+                  <div className="title">{p.what}</div>
+                  <div className="sub">{p.who} paid {p.amount}</div>
+                </div>
+                <span className={`badge ${p.note.startsWith("you lent") ? "badge-plus" : "badge-minus"}`}>{p.note}</span>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="foot">Database Management Systems · UBIT</div>
+        <div className="auth-feats">
+          <span><ShieldCheck size={15} /> ACID transactions</span>
+          <span><BarChart3 size={15} /> Monthly insights</span>
+          <span><Sparkles size={15} /> Ask in plain English</span>
+        </div>
       </section>
 
-      <div className="auth-main">
+      <main className="auth-main">
         <form className="auth-box" onSubmit={submit}>
-          <h2>{mode === "login" ? "Welcome back" : "Create an account"}</h2>
-          <p className="sub">{mode === "login" ? "Log in to see your groups." : "You'll be splitting bills in a minute."}</p>
+          <h2>{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+          <p className="sub">{mode === "login" ? "Log in to see your groups and balances." : "Free, and it takes under a minute."}</p>
 
           {mode === "register" && (
-            <>
-              <label htmlFor="name">Your name</label>
-              <input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ahmed Hashmi" required />
-            </>
+            <div className="field">
+              <label className="label" htmlFor="name">Full name</label>
+              <input id="name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ahmed Hashmi" required autoComplete="name" />
+            </div>
           )}
-          <label htmlFor="email">Email</label>
-          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
-          <label htmlFor="pw">Password</label>
-          <input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                 placeholder={mode === "register" ? "At least 8 characters" : ""} minLength={mode === "register" ? 8 : undefined} required />
+          <div className="field">
+            <label className="label" htmlFor="email">Email</label>
+            <input id="email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus autoComplete="email" />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="pw">Password</label>
+            <input id="pw" className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                   placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
+                   minLength={mode === "register" ? 8 : undefined} required
+                   autoComplete={mode === "register" ? "new-password" : "current-password"} />
+          </div>
 
-          <button type="submit" disabled={busy}>
+          {error && <p className="err-text" style={{ marginTop: 12 }}>{error}</p>}
+
+          <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 20 }} disabled={busy}>
             {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
+            {!busy && <ArrowRight size={16} />}
           </button>
-          {error && <p className="err">{error}</p>}
 
-          <p className="switch">
-            {mode === "login" ? (
-              <>New here? <a href="#" onClick={(e) => { e.preventDefault(); setMode("register"); setError(""); }}>Create an account</a></>
-            ) : (
-              <>Already have one? <a href="#" onClick={(e) => { e.preventDefault(); setMode("login"); setError(""); }}>Log in</a></>
-            )}
+          <p className="muted" style={{ textAlign: "center", marginTop: 18 }}>
+            {mode === "login" ? "New to FairShare? " : "Already have an account? "}
+            <a href="#" style={{ color: "var(--brand)", fontWeight: 550 }}
+               onClick={(e) => { e.preventDefault(); switchMode(mode === "login" ? "register" : "login"); }}>
+              {mode === "login" ? "Create an account" : "Log in"}
+            </a>
           </p>
 
           {mode === "login" && (
-            <div className="demo">
-              Just looking around? <button type="button" className="text" style={{ color: "var(--accent)" }} onClick={useDemo}>Use the demo account</button>
-              <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>ali@example.com · demo1234</div>
-            </div>
+            <>
+              <div className="divider">or</div>
+              <button type="button" className="btn btn-secondary btn-block"
+                      onClick={() => { setEmail("ali@example.com"); setPassword("demo1234"); setError(""); }}>
+                <Avatar id={1} name="Ali" size="sm" /> Fill in the demo account
+              </button>
+              <p className="hint" style={{ textAlign: "center", marginTop: 8 }}>ali@example.com · demo1234</p>
+            </>
           )}
         </form>
-      </div>
+      </main>
     </div>
   );
 }
