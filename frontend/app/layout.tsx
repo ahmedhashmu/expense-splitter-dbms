@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
-import { Fraunces, Work_Sans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
+import { ToastProvider } from "@/lib/ui";
 import Shell from "./Shell";
 
-const sans = Work_Sans({ subsets: ["latin"], variable: "--font-sans" });
-const serif = Fraunces({ subsets: ["latin"], variable: "--font-serif" });
+const sans = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "FairShare",
-  description: "Split group expenses and see who owes whom",
+  title: "FairShare — split group expenses",
+  description: "Track shared expenses with friends and see exactly who owes whom.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable}`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <AuthProvider>
-          <Shell>{children}</Shell>
+          <ToastProvider>
+            <Shell>{children}</Shell>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
